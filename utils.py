@@ -2,6 +2,7 @@ from __future__ import division
 
 import requests
 from bs4 import BeautifulSoup
+from googlevoice import Voice
 
 
 class PreciousMetalPrices(object):
@@ -31,8 +32,8 @@ class PreciousMetalPrices(object):
                 return [tds[1], tds[2]]
 
 
-    def construct_message(self, tds):
-        return 'Bid: ' + tds[0].string + '\nAsk: ' + tds[1].string
+    def construct_message(self, metal, tds):
+        return metal.upper() + ' Bid: ' + tds[0].string + '\nAsk: ' + tds[1].string
 
 
     def get_price(self, metal):
@@ -40,7 +41,7 @@ class PreciousMetalPrices(object):
         Valid values of metal are: Gold, Silver, Platinum, Palladium
         '''
         tds = self.get_entry(metal.lower())
-        return self.construct_message(tds)
+        return self.construct_message(metal, tds)
 
 
 class DigitalCurrencyPrices(object):
@@ -97,3 +98,127 @@ class Weather(object):
     def weather_by_city(self, city):
         # TODO
         pass
+
+class SMSParser(object):
+    def __init__(self):
+        self.voice = Voice()
+        self.sender = ''
+        self.msg = ''
+
+
+    def login(self):
+        self.voice.login()
+
+
+    def send(self):
+        self.login()
+        self.voice.send_sms(self.sender, self.msg)
+
+
+    def extractsms(self, htmlsms) :
+        """
+        extractsms  --  extract SMS messages from BeautifulSoup tree of Google Voice SMS HTML.
+
+        Output is a list of dictionaries, one per message.
+        """
+        msgitems = []
+        #   Extract all conversations by searching for a DIV with an ID at top level.
+        tree = BeautifulSoup(htmlsms)
+        conversations = tree.find_all("div", attrs={"id" : True}, recursive=False)
+        for conversation in conversations :
+            #       For each conversation, extract each row, which is one SMS message.
+            rows = conversation.find_all(attrs={"class" : "gc-message-sms-row"})
+            for row in rows:
+                msgitem = {"id" : conversation["id"]}
+                spans = row.find_all("span",attrs={"class" : True}, recursive=False)
+                for span in spans:
+                    cl = span["class"][0].replace('gc-message-sms-', '')
+                    msgitem[cl] = (" ".join(span.find_all(text=True))).strip()
+                msgitems.append(msgitem)
+        return msgitems
+
+
+    def get_messages(self):
+        self.login()
+        self.voice.sms()
+        messages = self.extractsms(self.voice.sms.html)
+        return messages
+
+
+    def delete_message(self, msg_id):
+        self.login()
+        for msg in self.voice.sms().messages:
+            if msg.id == msg_id:
+                msg.delete()
+
+
+    def set_sender(self, sender):
+        self.sender = sender
+
+
+    def set_msg(self, msg):
+        self.msg = msg
+
+
+class CommandParser(object):
+    def __init__(self):
+        self.valid_commands = ['weather', 'btc', 'ltc', 'gold', 'silver', 'platinum', 'palladium', 'help']
+        self.weather_commands = ['zipcode']
+        self.weather = Weather('')
+        self.metals = PreciousMetalPrices()
+        self.digital = DigitalCurrencyPrices()
+        self.helps = {
+                'btc': 'Send "btc" to get latest average price of Bitcoin',
+                'ltc': 'Send "ltc" to get latest average price of Litcoin',
+                'gold': 'Send "gold" to get latest price of Gold from APMEX',
+                'silver': 'Send "silver" to get latest price of Silver from APMEX',
+                'platinum': 'Send "platinum" to get latest price of Platinum from APMEX',
+                'palladium': 'Send "palladium" to get latest price of Palladium from APMEX',
+                'weather': '"weather [option]". Valid options are: zipcode\n"weather zipcode [zip]" for weather in specified USA zipcode'
+                }
+        self.general_help = 'Valid commands: ' + ', '.join(self.valid_commands) + '\nSend "help [command]" for specifics'
+
+
+    def help_respond(self, params):
+        if len(params) == 1:
+            return self.general_help
+        if params[1] not in self.valid_commands:
+            return self.general_help
+        return self.helps[params[1]]
+
+
+    def parse_msg(self, msg):
+        '''
+        Valid commands: weather, btc, ltc, gold, silver, palladium, platinum, help
+        '''
+        text = msg.strip().lstrip().lower()
+        params = text.split(' ')
+        if params[0] not in self.valid_commands:
+            return 'Invalid command: send "help" for a list of valid commands'
+        if params[0] == 'help':
+            return self.help_respond(params)
+        if params[0] == 'btc':
+            return self.digital.get_price('btc')
+        if params[0] == 'ltc':
+            return self.digital.get_price('ltc')
+        if params[0] == 'gold':
+            return self.metals.get_price('gold')
+        if params[0] == 'silver':
+            return self.metals.get_price('silver')
+        if params[0] == 'platinum':
+            return self.metals.get_price('platinum')
+        if params[0] == 'palladium':
+            return self.metals.get_price('palladium')
+        if params[0] == 'weather':
+            if not len(params) > 1:
+                return self.helps['weather']
+            if params[1] not in self.weather_commands:
+                return self.helps['weather']
+            if params[1] == 'zipcode':
+                if not len(params) > 2:
+                    return self.helps['weather']
+                if not params[2].isnumeric():
+                    return self.helps['weather']
+                if len(params[2]) != 5:
+                    return 'Valid zipcode is 5 digits'
+                return self.weather.weather_by_zipcode(params[2])
