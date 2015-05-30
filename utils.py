@@ -1,4 +1,6 @@
 from __future__ import division
+import time
+from ConfigParser import SafeConfigParser
 
 import requests
 from bs4 import BeautifulSoup
@@ -99,6 +101,57 @@ class Weather(object):
         # TODO
         pass
 
+
+
+class StockTicker(object):
+    def __init__(self):
+        self.base_url = 'http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20yahoo.finance.quotes%20where%20symbol%20in%20(%22{}%22)&env=store://datatables.org/alltableswithkeys'.format
+        self.json_format = '&format=json'
+
+
+    def get_stock_info(self, stock_name):
+        url = self.base_url(stock_name) + self.json_format
+        req = requests.get(url)
+        js = req.json()['query']['results']['quote']
+        name = js['Name']
+        bid = js['Bid']
+        ask = js['Ask']
+        change = js['Change']
+        symbol = js['Symbol']
+        msg = 'Current Stock Info for {} ({}):\nBid: {}, Ask: {}, Change: {}'.format(name, symbol, bid, ask, change)
+        return msg
+
+
+class TimeRetriever(object):
+    def __init__(self, key):
+        self.key = key
+        self.base_google_url = 'http://maps.googleapis.com/maps/api/geocode/json?address={}&sensor=false'.format
+        self.base_timezone_url = 'http://api.timezonedb.com/?lat={}&lng={}&key={}&format=json'.format
+
+
+    def _get_lat_and_long(self, location):
+        url = self.base_google_url(location)
+        req = requests.get(url)
+        return req.json()['results'][0]['geometry']['location']
+
+
+    def _get_time(self, loc):
+        url = self.base_timezone_url(loc['lat'], loc['lng'], self.key)
+        req = requests.get(url)
+        return req.json()['timestamp']
+
+
+    def _convert_timestamp(self, stamp):
+        return time.asctime(time.gmtime(int(stamp)))
+
+
+    def get_time(self, location):
+        loc = self._get_lat_and_long(location)
+        stamp = self._get_time(loc)
+        timestr = self._convert_timestamp(stamp)
+        return timestr
+
+
 class SMSParser(object):
     def __init__(self):
         self.voice = Voice()
@@ -162,11 +215,17 @@ class SMSParser(object):
 
 class CommandParser(object):
     def __init__(self):
-        self.valid_commands = ['weather', 'btc', 'ltc', 'gold', 'silver', 'platinum', 'palladium', 'help']
+        self.parser = SafeConfigParser()
+        self.parser.read('config.ini')
+        self.timezone_api_key = self.parser.get('general', 'timekey')
+
+        self.valid_commands = ['weather', 'btc', 'ltc', 'gold', 'silver', 'platinum', 'palladium', 'help', 'stock', 'time']
         self.weather_commands = ['zipcode']
         self.weather = Weather('')
         self.metals = PreciousMetalPrices()
         self.digital = DigitalCurrencyPrices()
+        self.stocks = StockTicker()
+        self.time = TimeRetriever(self.timezone_api_key)
         self.helps = {
                 'btc': 'Send "btc" to get latest average price of Bitcoin',
                 'ltc': 'Send "ltc" to get latest average price of Litcoin',
@@ -174,7 +233,10 @@ class CommandParser(object):
                 'silver': 'Send "silver" to get latest price of Silver from APMEX',
                 'platinum': 'Send "platinum" to get latest price of Platinum from APMEX',
                 'palladium': 'Send "palladium" to get latest price of Palladium from APMEX',
-                'weather': '"weather [option]". Valid options are: zipcode\n"weather zipcode [zip]" for weather in specified USA zipcode'
+                'weather': '"weather [option]". Valid options are: zipcode\n"weather zipcode [zip]" for weather in specified USA zipcode',
+                'stock': 'Send "stock [stock symbol]" to get the latest stock prices for specified stock',
+                'time': 'Send "time [location]" where "location" is the name of the city or country that you want the current local time of' \
+                        '\nExample: "time California" will return the local time in California'
                 }
         self.general_help = 'Valid commands: ' + ', '.join(self.valid_commands) + '\nSend "help [command]" for specifics'
 
@@ -222,3 +284,12 @@ class CommandParser(object):
                 if len(params[2]) != 5:
                     return 'Valid zipcode is 5 digits'
                 return self.weather.weather_by_zipcode(params[2])
+        if params[0] == 'stock':
+            if not len(params) > 1:
+                return self.helps['stock']
+            return self.stocks.get_stock_info(params[1])
+        if params[0] == 'time':
+            if not len(params) > 1:
+                return self.helps['time']
+            location = ' '.join(params[1:])
+            return self.time.get_time(location)
