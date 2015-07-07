@@ -21,7 +21,7 @@ usually still have cell access.
 
 `weather`: Get the weather for a specified zipcode. Send `weather zipcode *****` where 
 `*****` is the target zipcode.  
-`btc', 'ltc': Get the current average price of Bitcoin or Litecoin. Uses [Preev](http://preev.com).  
+`btc`, `ltc`: Get the current average price of Bitcoin or Litecoin. Uses [Preev](http://preev.com).  
 `gold`, `silver`, `platinum`, `palladium`: Get the current price of the desired precious metal. 
 Prices are based on [APMEX](https://www.apmex.com).  
 `stock`: Uses the Yahoo Finance API to retrieve current stock prices for the specified stock. 
