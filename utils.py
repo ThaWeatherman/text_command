@@ -4,7 +4,6 @@ from ConfigParser import SafeConfigParser
 
 import requests
 from bs4 import BeautifulSoup
-from googlevoice import Voice
 
 
 class PreciousMetalPrices(object):
@@ -152,67 +151,6 @@ class TimeRetriever(object):
         return timestr
 
 
-class SMSParser(object):
-    def __init__(self):
-        self.voice = Voice()
-        self.sender = ''
-        self.msg = ''
-
-
-    def login(self):
-        self.voice.login()
-
-
-    def send(self):
-        self.login()
-        self.voice.send_sms(self.sender, self.msg)
-
-
-    def extractsms(self, htmlsms) :
-        """
-        extractsms  --  extract SMS messages from BeautifulSoup tree of Google Voice SMS HTML.
-
-        Output is a list of dictionaries, one per message.
-        """
-        msgitems = []
-        #   Extract all conversations by searching for a DIV with an ID at top level.
-        tree = BeautifulSoup(htmlsms)
-        conversations = tree.find_all("div", attrs={"id" : True}, recursive=False)
-        for conversation in conversations :
-            #       For each conversation, extract each row, which is one SMS message.
-            rows = conversation.find_all(attrs={"class" : "gc-message-sms-row"})
-            for row in rows:
-                msgitem = {"id" : conversation["id"]}
-                spans = row.find_all("span",attrs={"class" : True}, recursive=False)
-                for span in spans:
-                    cl = span["class"][0].replace('gc-message-sms-', '')
-                    msgitem[cl] = (" ".join(span.find_all(text=True))).strip()
-                msgitems.append(msgitem)
-        return msgitems
-
-
-    def get_messages(self):
-        self.login()
-        self.voice.sms()
-        messages = self.extractsms(self.voice.sms.html)
-        return messages
-
-
-    def delete_message(self, msg_id):
-        self.login()
-        for msg in self.voice.sms().messages:
-            if msg.id == msg_id:
-                msg.delete()
-
-
-    def set_sender(self, sender):
-        self.sender = sender
-
-
-    def set_msg(self, msg):
-        self.msg = msg
-
-
 class CommandParser(object):
     def __init__(self):
         self.parser = SafeConfigParser()
@@ -251,7 +189,7 @@ class CommandParser(object):
 
     def parse_msg(self, msg):
         '''
-        Valid commands: weather, btc, ltc, gold, silver, palladium, platinum, help
+        Valid commands: weather, btc, ltc, gold, silver, palladium, platinum, help, stock, time
         '''
         text = msg.strip().lstrip().lower()
         params = text.split(' ')
