@@ -51,12 +51,13 @@ def handle_call_menu():
     digit = request.values.get('Digits', None)
     print digit
     print type(digit)
+    print digit == '1'
     if digit == '1':
-        redirect('/api/metals_menu')
+        return redirect('/api/metals_menu')
     elif digit == '2':
-        redirect('/api/digital_menu')
+        return redirect('/api/digital_menu')
     else:
-        redirect('/api/call_menu')
+        return redirect('/api/call_menu')
 
 
 @app.route('/api/metals_menu', methods=['GET', 'POST'])
@@ -89,7 +90,7 @@ def handle_metals_menu():
         text = p.get_price('palladium')
         return say_price(resp, text)
     else:
-        redirect('/api/metals_menu')
+        return redirect('/api/metals_menu')
 
 
 @app.route('/api/digital_menu', methods=['GET', 'POST'])
@@ -114,7 +115,7 @@ def handle_digital_menu():
         text = d.get_price('ltc')
         return say_price(resp, text)
     else:
-        redirect('/api/digital_menu')
+        return redirect('/api/digital_menu')
 
 
 if __name__ == '__main__':
