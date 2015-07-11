@@ -15,7 +15,6 @@ def say_price(resp, text):
     text = text.replace('$', '')
     text = text.replace(',', '')
     text = text.replace(':', '')
-    print text
     resp.say(text)
     resp.say('Goodbye.')
     resp.hangup()
