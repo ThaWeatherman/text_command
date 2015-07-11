@@ -11,6 +11,10 @@ cmd = utils.CommandParser()
 
 
 def say_price(resp, text):
+    text = text.replace('\n', ' ')
+    text = text.replace('$', '')
+    text = text.replace(',', '')
+    text = text.replace(':', '')
     resp.say(text)
     resp.say('Goodbye.')
     resp.hangup()
