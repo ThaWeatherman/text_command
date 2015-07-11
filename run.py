@@ -19,6 +19,7 @@ def say_price(resp, text):
     resp.say(text)
     resp.say('Goodbye.')
     resp.hangup()
+    return str(resp)
 
 
 @app.route('/', methods=['POST'])
