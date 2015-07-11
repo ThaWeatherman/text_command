@@ -18,7 +18,7 @@ class PreciousMetalPrices(object):
 
     def get_table(self):
         page = self.get_apmex()
-        soup = BeautifulSoup(page)
+        soup = BeautifulSoup(page, "html.parser")
         table = soup.find('table')
         rows = table.find_all(lambda tag: tag.name=='tr')
         return rows
