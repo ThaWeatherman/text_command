@@ -49,6 +49,8 @@ def call_menu():
 @app.route('/api/handle_call_menu', methods=['GET', 'POST'])
 def handle_call_menu():
     digit = request.values.get('Digits', None)
+    print digit
+    print type(digit)
     if digit == '1':
         redirect('/api/metals_menu')
     elif digit == '2':
